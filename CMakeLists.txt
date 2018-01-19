@@ -17,13 +17,19 @@ if(NOT CMAKE_VERSION)
       "${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}.${CMAKE_PATCH_VERSION}")
 endif()
 
+if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 #################################################################################
 # Set GEOS project
 #################################################################################
+set(GEOS_STADALONE True)
+message(STATUS "geos standalone project")
+else ()
+  set(GEOS_STADALONE False)
+  message(STATUS "geos not standalone project")
+endif ()
 project(GEOS LANGUAGES C CXX)
-
 # Add custom GEOS modules for CMake
-list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/modules")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 
 #################################################################################
 # Set C++ standard
@@ -334,11 +340,25 @@ include(CMakeToolsHelpers OPTIONAL)
 # Configure subdirectories
 #################################################################################
 add_subdirectory(include)
-add_subdirectory(src)
-add_subdirectory(capi)
+if (GEOS_STADALONE)
+  add_subdirectory(src)
+  add_subdirectory(capi)
+else (GEOS_STADALONE)
+  file(GLOB_RECURSE geos_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+  file(GLOB_RECURSE geos_ALL_HEADERS ${CMAKE_SOURCE_DIR}/include/src/*.h)
+  add_library(geos_c STATIC
+    ${geos_SOURCES}
+    ${geos_ALL_HEADERS}
+    capi/geos_c.cpp
+    capi/geos_ts_c.cpp)
+  add_dependencies(geos_c geos_revision)
+  add_library(geos ALIAS geos_c)
+  install(TARGETS geos_c DESTINATION ".")
+endif (GEOS_STADALONE)
 add_subdirectory(tests)
+if (GEOS_STADALONE)
 add_subdirectory(tools)
-
+endif ()
 #################################################################################
 # Install/Uninstall
 #################################################################################
